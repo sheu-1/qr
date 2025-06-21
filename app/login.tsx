@@ -1,87 +1,79 @@
-import { View, TextInput, Button, Text, StyleSheet, Alert } from "react-native";
-import { useState } from "react";
+import React, { useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from "expo-router";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { auth, handleError } from '../lib/supabase';
+import { globalStyles } from './theme';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function login() {
+export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async () => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
     if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password.");
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
-    if (!emailRegex.test(email)) {
-      Alert.alert("Error", "Please enter a valid email address.");
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters.");
-      return;
-    }
-
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      Alert.alert("Success", "Logged in successfully!");
-      router.push("/myqr");
+      setLoading(true);
+      const { user } = await auth.signIn(email, password);
+
+      if (user) {
+        Alert.alert('Success', 'Logged in successfully!');
+        router.replace('/(tabs)');
+      }
     } catch (error: any) {
-      Alert.alert("Login failed", error.message);
-      console.error("Login error:", error);
+      Alert.alert('Login Failed', handleError(error));
+      console.error('Error logging in:', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+    <View style={globalStyles.container}>
+      <View style={globalStyles.header}>
+        <TouchableOpacity onPress={() => router.replace("/welcome")}>
+          <Ionicons name="chevron-back" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+      <Text style={globalStyles.title}>Login</Text>
+
       <TextInput
+        style={globalStyles.input}
         placeholder="Email"
-        placeholderTextColor="#999"
+        placeholderTextColor="#666"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
-        style={styles.input}
         autoCapitalize="none"
       />
       <TextInput
+        style={globalStyles.input}
         placeholder="Password"
-        placeholderTextColor="#999"
+        placeholderTextColor="#666"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        style={styles.input}
       />
-      <Button title="Login" onPress={handleLogin} color="grey" />
+      <TouchableOpacity
+        style={[globalStyles.button, loading && { opacity: 0.7 }]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        <Text style={globalStyles.buttonText}>{loading ? 'Signing in...' : 'Login'}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[globalStyles.button, { backgroundColor: '#000' }]}
+        onPress={() => router.push("/reset-password")}
+      >
+        <Text style={[globalStyles.buttonText, { color: '#fff' }]}>
+          Forgot password?
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    color: "#fff",
-    fontSize: 22,
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  input: {
-    color: "#fff",
-    borderBottomColor: "#fff",
-    borderBottomWidth: 1,
-    marginBottom: 20,
-    padding: 10,
-    width: "100%",
-  },
-});

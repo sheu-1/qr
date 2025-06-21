@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function IndexScreen() {
+export default function WelcomeScreen() {
   const router = useRouter();
 
   return (

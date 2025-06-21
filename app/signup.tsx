@@ -1,148 +1,89 @@
-import { View, TextInput, Button, Text, StyleSheet, Alert } from "react-native";
-import { useState } from "react";
+import React, { useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { Stack } from 'expo-router';
+import { supabase, auth, handleError } from '../lib/supabase';
 import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from "../lib/firebase"; 
+import { globalStyles } from './theme';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function signup() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+function SignupScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSignup = async () => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!firstName || !lastName || !email || !phone || !password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all fields.");
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
-    if (!emailRegex.test(email)) {
-      Alert.alert("Error", "Please enter a valid email address.");
-      return;
-    }
-
-    if (phone.trim() === "") {
-      Alert.alert("Error", "Please enter a valid phone number.");
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match.");
-      return;
-    }
-
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // Save extra fields in Firestore
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        firstName,
-        lastName,
-        email,
-        phone,
-        createdAt: new Date(),
-      });
-      Alert.alert(
-        "Success",
-        "Account created successfully!",
-        [
-          {
-            text: "OK",
-            onPress: () => router.replace("/login"),
-          },
-        ],
-        { cancelable: false }
-      );
+      setLoading(true);
+      const { user } = await auth.signUp(email, password);
+
+      if (!user) {
+        Alert.alert('Error', 'Failed to create user account. Please try again.');
+        return;
+      }
+
+      Alert.alert('Success', 'Account created successfully! Please check your email to verify your account.');
+      router.replace('/login');
+
     } catch (error: any) {
-      Alert.alert("Signup failed", error.message);
-      console.error("Signup error:", error);
+      Alert.alert('Sign Up Failed', handleError(error));
+      console.error('Signup process failed:', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Sign Up</Text>
-      <TextInput
-        placeholder="First Name"
-        placeholderTextColor="#999"
-        value={firstName}
-        onChangeText={setFirstName}
-        style={styles.input}
+    <View style={globalStyles.container}>
+      <View style={globalStyles.header}>
+        <TouchableOpacity onPress={() => router.replace("/welcome")}>
+          <Ionicons name="chevron-back" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+      <Stack.Screen
+        options={{
+          title: 'Sign Up',
+          headerStyle: {
+            backgroundColor: '#000',
+          },
+          headerTintColor: '#fff',
+        }}
       />
+      <Text style={globalStyles.title}>Create Account</Text>
+
       <TextInput
-        placeholder="Last Name"
-        placeholderTextColor="#999"
-        value={lastName}
-        onChangeText={setLastName}
-        style={styles.input}
-      />
-      <TextInput
+        style={globalStyles.input}
         placeholder="Email"
-        placeholderTextColor="#999"
+        placeholderTextColor="#666"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
-        style={styles.input}
+        autoCapitalize="none"
       />
+
       <TextInput
-        placeholder="Phone"
-        placeholderTextColor="#999"
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="phone-pad"
-        style={styles.input}
-      />
-      <TextInput
+        style={globalStyles.input}
         placeholder="Password"
-        placeholderTextColor="#999"
+        placeholderTextColor="#666"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        style={styles.input}
       />
-      <TextInput
-        placeholder="Confirm Password"
-        placeholderTextColor="#999"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-      <Button title="Create Account" onPress={handleSignup} color="grey" />
+
+      <TouchableOpacity
+        style={[globalStyles.button, loading && { opacity: 0.7 }]}
+        onPress={handleSignup}
+        disabled={loading}
+      >
+        <Text style={globalStyles.buttonText}>{loading ? 'Creating...' : 'Sign Up'}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    color: "#fff",
-    fontSize: 22,
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  input: {
-    color: "#fff",
-    borderBottomColor: "#fff",
-    borderBottomWidth: 1,
-    marginBottom: 20,
-    padding: 10,
-    width: "100%",
-  },
-});
+export default SignupScreen;
